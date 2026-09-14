@@ -5,7 +5,8 @@ let currentUser = null; // { username, role, nama, nip }
 let activeTeacherUsername = ''; // Username of the teacher whose data is currently loaded
 let pkgData = null;
 let currentTab = 'Menu';
-let gasUrl = '';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxnnf-YaAGFwd_VXhrgJvEb29cO-6qSPcFkETzT_zrZEx9cABPi1z2guiFjOeo4Ufv9FA/exec';
+let gasUrl = DEFAULT_GAS_URL;
 
 // Save current active teacher data to localStorage
 function saveActiveTeacherData() {
@@ -75,7 +76,8 @@ function loadTeacherData(username) {
 // Initialize Application Data & Multi-login State
 function initApp() {
   // Load GAS URL
-  gasUrl = localStorage.getItem('PKG_GAS_URL') || '';
+  gasUrl = localStorage.getItem('PKG_GAS_URL') || DEFAULT_GAS_URL;
+  localStorage.setItem('PKG_GAS_URL', gasUrl);
   updateGasStatusUI();
 
   // Load Users List

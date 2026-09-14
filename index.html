@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi PKG 2025 - Penilaian Kinerja Guru</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Header Bar -->
+  <header class="no-print bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <!-- App Brand -->
+      <div class="flex items-center gap-3">
+        <div class="bg-sky-600 text-white p-2 rounded-lg flex items-center justify-center">
+          <i data-lucide="file-badge-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">PKG 2025</h1>
+          <p class="text-xs text-slate-500 font-medium">Penilaian Kinerja Guru & Kepala Sekolah</p>
+        </div>
+      </div>
+
+      <!-- Sync Status & Header Action Buttons -->
+      <div class="flex items-center gap-3">
+        <!-- Google Sheets Status -->
+        <button id="btn-gas-config" onclick="openGasModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition">
+          <span id="gas-status-dot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span id="gas-status-text">Mode Lokal</span>
+          <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+        </button>
+
+        <!-- User Profile & Role Switcher -->
+        <div id="user-header-profile" class="flex items-center gap-2 pl-3 border-l border-slate-200">
+          <div class="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium">
+            <span id="user-role-badge" class="px-2 py-0.5 rounded text-[10px] font-bold text-white bg-blue-600 uppercase">Guru</span>
+            <span id="user-display-name" class="font-semibold text-slate-800">Guru</span>
+          </div>
+
+          <!-- Teacher Selector for Kepala Sekolah -->
+          <div id="ks-teacher-selector-wrapper" class="hidden flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-2.5 py-1 text-xs">
+            <span class="font-bold text-[11px]">Memeriksa Guru:</span>
+            <select id="ks-teacher-select" onchange="handleKsTeacherChange(this.value)" class="bg-white border border-amber-300 rounded px-2 py-0.5 text-xs font-medium text-slate-800 outline-none">
+              <!-- Dynamic -->
+            </select>
+          </div>
+
+          <!-- Logout Button -->
+          <button onclick="handleLogout()" title="Keluar / Ganti Akun" class="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            <span>Keluar</span>
+          </button>
+        </div>
+
+        <!-- Tombol Cetak -->
+        <button onclick="handlePrint()" class="btn-action flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg border border-slate-300 transition shadow-sm">
+          <i data-lucide="printer" class="w-4 h-4 text-slate-600"></i>
+          <span>Cetak</span>
+        </button>
+
+        <!-- Tombol Simpan -->
+        <button onclick="handleSave()" class="btn-action flex items-center gap-2 px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm rounded-lg shadow-sm transition">
+          <i data-lucide="save" class="w-4 h-4"></i>
+          <span>Simpan</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Layout Container -->
+  <div class="flex-1 flex max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 gap-6">
+
+    <!-- Sidebar Navigation -->
+    <aside class="no-print sidebar-container w-64 flex-shrink-0 bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-[calc(100vh-6rem)] sticky top-20 overflow-y-auto">
+      <div class="mb-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Navigasi Sheet</span>
+        <span class="text-xs px-2 py-0.5 bg-sky-50 text-sky-700 font-semibold rounded-full">19 Sheet</span>
+      </div>
+
+      <nav class="space-y-1">
+        <!-- Group: KEPALA SEKOLAH (Dynamic) -->
+        <div id="sidebar-ks-section" class="hidden pb-2 mb-2 border-b border-slate-100">
+          <div class="sidebar-group-title text-purple-700">Menu Kepala Sekolah</div>
+          <div class="sidebar-link text-purple-800 bg-purple-50/70 hover:bg-purple-100 font-semibold" onclick="switchTab('Daftar Guru')" data-sheet="Daftar Guru">
+            <i data-lucide="users" class="w-4 h-4 text-purple-600"></i>
+            <span>Daftar Guru & Validasi</span>
+          </div>
+        </div>
+
+        <!-- Group: UTAMA -->
+        <div class="sidebar-group-title">Utama</div>
+        <div class="sidebar-link active" onclick="switchTab('Menu')" data-sheet="Menu">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+          <span>Menu</span>
+        </div>
+        <div class="sidebar-link" onclick="switchTab('Isi data')" data-sheet="Isi data">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          <span>Isi data</span>
+        </div>
+        <div class="sidebar-link" onclick="switchTab('Rekap')" data-sheet="Rekap">
+          <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+          <span>Rekap</span>
+        </div>
+
+        <!-- Group: INSTRUMEN PERILAKU -->
+        <div class="sidebar-group-title">Instrumen Perilaku</div>
+        <div class="sidebar-link" onclick="switchTab('Instrumen Perilaku GuruKS')" data-sheet="Instrumen Perilaku GuruKS">
+          <i data-lucide="heart-handshake" class="w-4 h-4"></i>
+          <span class="truncate">Instrumen Perilaku</span>
+        </div>
+        <div class="sidebar-link" onclick="switchTab('Rekap Instrumen Perilaku GuruKS')" data-sheet="Rekap Instrumen Perilaku GuruKS">
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+          <span class="truncate">Rekap Perilaku</span>
+        </div>
+
+        <!-- Group: SUB KOMPETENSI -->
+        <div class="sidebar-group-title">Sub Kompetensi (1-14)</div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.1')" data-sheet="SubKom.1"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.1</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.2')" data-sheet="SubKom.2"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.2</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.3')" data-sheet="SubKom.3"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.3</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.4')" data-sheet="SubKom.4"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.4</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.5')" data-sheet="SubKom.5"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.5</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.6')" data-sheet="SubKom.6"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.6</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.7')" data-sheet="SubKom.7"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.7</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.8')" data-sheet="SubKom.8"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.8</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.9')" data-sheet="SubKom.9"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.9</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.10')" data-sheet="SubKom.10"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.10</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.11')" data-sheet="SubKom.11"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.11</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.12')" data-sheet="SubKom.12"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.12</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.13')" data-sheet="SubKom.13"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.13</span></div>
+        <div class="sidebar-link" onclick="switchTab('SubKom.14')" data-sheet="SubKom.14"><i data-lucide="file-text" class="w-4 h-4"></i><span>SubKom.14</span></div>
+      </nav>
+    </aside>
+
+    <!-- Main Dynamic Content Container -->
+    <main class="main-content flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm min-h-[calc(100vh-6rem)]">
+      
+      <!-- Validation Status Bar -->
+      <div id="validation-bar" class="no-print mb-6 p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all bg-slate-50 border-slate-200">
+        <div class="flex items-center gap-3">
+          <div id="validation-icon-wrapper" class="p-2.5 rounded-lg text-white bg-slate-500 shadow-sm">
+            <i id="validation-icon" data-lucide="file-clock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Status Validasi KS</span>
+              <span id="validation-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">Draft</span>
+            </div>
+            <p id="validation-desc" class="text-xs text-slate-600 mt-0.5">Guru sedang mengisikan instrumen penilaian.</p>
+          </div>
+        </div>
+
+        <!-- Validation Action Buttons -->
+        <div id="validation-actions" class="flex items-center gap-2 flex-wrap">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div id="content-container">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Google Apps Script Modal -->
+  <div id="modal-gas" class="no-print fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 m-4">
+      <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="link-2" class="w-5 h-5 text-sky-600"></i>
+          Integrasi Google Sheets / Apps Script
+        </h3>
+        <button onclick="closeGasModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Untuk menyimpan data langsung ke Google Sheets secara realtime, masukkan **URL Apps Script Web App** yang diperoleh setelah melakukan deploy file <code class="bg-slate-100 px-1 py-0.5 rounded text-sky-700 font-mono">Code.gs</code>.
+        </p>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">URL Google Apps Script Web App</label>
+          <input type="url" id="input-gas-url" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" class="form-input text-xs font-mono">
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"></i>
+          <span>Jika URL dikosongkan, aplikasi akan secara otomatis menyimpan data di <strong>Penyimpanan Lokal (localStorage)</strong> browser Anda.</span>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button onclick="closeGasModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
+        <button onclick="saveGasConfig()" class="px-4 py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow-sm">Simpan Pengaturan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Login Modal -->
+  <div id="modal-login" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 m-4 overflow-hidden">
+      <!-- Header Branding -->
+      <div class="text-center mb-6">
+        <div class="inline-flex bg-sky-100 text-sky-700 p-3 rounded-2xl mb-2">
+          <i data-lucide="shield-check" class="w-8 h-8"></i>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900">Sistem PKG 2025</h2>
+        <p class="text-xs text-slate-500">Silakan masuk menggunakan akun Guru atau Kepala Sekolah</p>
+      </div>
+
+      <!-- Tab Switcher: Login vs Register -->
+      <div class="flex border-b border-slate-200 mb-5">
+        <button id="tab-login-btn" onclick="switchAuthTab('login')" class="flex-1 py-2 text-center text-xs font-bold border-b-2 border-sky-600 text-sky-600 transition">Masuk Akun</button>
+        <button id="tab-register-btn" onclick="switchAuthTab('register')" class="flex-1 py-2 text-center text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition">Daftar Guru Baru</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="form-login" onsubmit="handleLoginSubmit(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Username / NIP</label>
+          <input type="text" id="login-username" required placeholder="Contoh: guru1 / kepala_sekolah" class="form-input text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+          <input type="password" id="login-password" required placeholder="Default: 123456" class="form-input text-xs">
+        </div>
+
+        <!-- Quick Account Presets -->
+        <div class="pt-2">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Pilih Akun Demo (Klik Cepat):</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="fillLogin('guru1', '123456')" class="p-2 border border-slate-200 rounded-xl text-left hover:border-sky-500 hover:bg-sky-50 transition group">
+              <span class="block text-xs font-bold text-slate-800 group-hover:text-sky-700">Guru 1</span>
+              <span class="block text-[10px] text-slate-500 truncate">Abdul Rohim</span>
+            </button>
+            <button type="button" onclick="fillLogin('guru2', '123456')" class="p-2 border border-slate-200 rounded-xl text-left hover:border-sky-500 hover:bg-sky-50 transition group">
+              <span class="block text-xs font-bold text-slate-800 group-hover:text-sky-700">Guru 2</span>
+              <span class="block text-[10px] text-slate-500 truncate">Siti Rahmah</span>
+            </button>
+            <button type="button" onclick="fillLogin('kepala_sekolah', '123456')" class="p-2 border border-purple-200 bg-purple-50/50 rounded-xl text-left hover:border-purple-500 hover:bg-purple-100 transition group">
+              <span class="block text-xs font-bold text-purple-900 group-hover:text-purple-800">Kepala Sek.</span>
+              <span class="block text-[10px] text-purple-600 truncate">Abdul Yakub</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-3">
+          <button type="submit" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2">
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            <span>Masuk ke Sistem PKG</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Register Form (Hidden by default) -->
+      <form id="form-register" onsubmit="handleRegisterSubmit(event)" class="space-y-3 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap & Gelar</label>
+          <input type="text" id="reg-nama" required placeholder="Contoh: Ahmad Subagyo, S.Pd." class="form-input text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">NIP / NUPTK</label>
+          <input type="text" id="reg-nip" placeholder="19900101..." class="form-input text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Username Baru</label>
+          <input type="text" id="reg-username" required placeholder="Contoh: guru_ahmad" class="form-input text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+          <input type="password" id="reg-password" required placeholder="Minimal 6 karakter" class="form-input text-xs">
+        </div>
+
+        <div class="pt-3">
+          <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Daftarkan Akun Guru</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Feedback / Catatan KS -->
+  <div id="modal-ks-notes" class="no-print fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 m-4">
+      <h3 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-2">
+        <i data-lucide="message-square" class="w-5 h-5 text-amber-600"></i>
+        Catatan / Perbaikan dari Kepala Sekolah
+      </h3>
+      <p class="text-xs text-slate-600 mb-4">Masukkan catatan perbaikan untuk guru yang dinilai.</p>
+      <textarea id="ks-notes-input" rows="4" class="form-input text-xs" placeholder="Tuliskan catatan perbaikan di sini..."></textarea>
+      <div class="mt-4 flex justify-end gap-2">
+        <button onclick="closeKsNotesModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
+        <button onclick="submitKsNotes()" class="px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm">Kirim Catatan & Minta Perbaikan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="hidden flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg text-sm border border-slate-800">
+    <i id="toast-icon" data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+    <span id="toast-msg">Data berhasil disimpan!</span>
+  </div>
+
+  <!-- Scripts -->
+  <script src="pkg_initial_data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>
+

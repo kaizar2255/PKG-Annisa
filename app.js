@@ -5,7 +5,7 @@ let currentUser = null; // { username, role, nama, nip }
 let activeTeacherUsername = ''; // Username of the teacher whose data is currently loaded
 let pkgData = null;
 let currentTab = 'Menu';
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxnnf-YaAGFwd_VXhrgJvEb29cO-6qSPcFkETzT_zrZEx9cABPi1z2guiFjOeo4Ufv9FA/exec';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwqgUHSOUhvx20ZBOKV2LcGYRmCKUP4q381YDhevcYg-ucNdR8itvQ3PzRwP4qAyMqI_w/exec';
 let gasUrl = DEFAULT_GAS_URL;
 
 // Save current active teacher data to localStorage
@@ -75,8 +75,13 @@ function loadTeacherData(username) {
 
 // Initialize Application Data & Multi-login State
 function initApp() {
-  // Load GAS URL
-  gasUrl = localStorage.getItem('PKG_GAS_URL') || DEFAULT_GAS_URL;
+  // Load GAS URL (auto-update if legacy URL)
+  const savedUrl = localStorage.getItem('PKG_GAS_URL');
+  if (!savedUrl || savedUrl.includes('AKfycbxnnf-YaAGFwd')) {
+    gasUrl = DEFAULT_GAS_URL;
+  } else {
+    gasUrl = savedUrl;
+  }
   localStorage.setItem('PKG_GAS_URL', gasUrl);
   updateGasStatusUI();
 

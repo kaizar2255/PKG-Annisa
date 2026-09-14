@@ -1,9 +1,13 @@
 /**
- * Google Apps Script Backend for PKG 2025 Web Application
+ * ==============================================================================
+ * Google Apps Script Backend - PKG 2025 Web Application
  * File: Code.gs
- * Target Google Drive Folder: https://drive.google.com/drive/folders/1wOtpj-5XokbSn0DTBnfOrbdlUURRjcf7
+ * Master Template File ID: 16aTGfKoFbjSMAjE10JSjOnyqpH3jQ8Uc
+ * Target Google Drive Folder ID: 1wOtpj-5XokbSn0DTBnfOrbdlUURRjcf7
+ * ==============================================================================
  */
 
+var TEMPLATE_FILE_ID = "16aTGfKoFbjSMAjE10JSjOnyqpH3jQ8Uc";
 var TARGET_FOLDER_ID = "1wOtpj-5XokbSn0DTBnfOrbdlUURRjcf7";
 
 function doGet(e) {
@@ -19,7 +23,8 @@ function doGet(e) {
 
   return ContentService.createTextOutput(JSON.stringify({
     status: 'ready',
-    service: 'PKG 2025 Multi-User Google Drive Service',
+    service: 'PKG 2025 Master Template Service',
+    templateId: TEMPLATE_FILE_ID,
     folderUrl: 'https://drive.google.com/drive/folders/' + TARGET_FOLDER_ID
   })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -51,13 +56,16 @@ function doPost(e) {
   }
 }
 
+/**
+ * Menyimpan data guru ke Google Spreadsheet (Menggandakan Master Template 16aTGfKoFbjSMAjE10JSjOnyqpH3jQ8Uc)
+ */
 function saveDataToTeacherSpreadsheet(data, username) {
   var namaGuru = (data.identitas && data.identitas.namaGuru) ? data.identitas.namaGuru : username;
   var fileName = "PKG 2025 - " + namaGuru;
   
   var ss = getOrCreateUserSpreadsheet(fileName);
   
-  // Save sheets in ss
+  // Isikan seluruh sheet berdasarkan template
   saveAllSheets(ss, data);
 
   return {
@@ -67,6 +75,9 @@ function saveDataToTeacherSpreadsheet(data, username) {
   };
 }
 
+/**
+ * Mendapatkan atau menggandakan file dari Master Template Google Spreadsheet
+ */
 function getOrCreateUserSpreadsheet(fileName) {
   var folder;
   try {
@@ -75,27 +86,170 @@ function getOrCreateUserSpreadsheet(fileName) {
     folder = DriveApp.getRootFolder();
   }
 
+  // 1. Cek apakah file sudah ada di folder target
   var files = folder.getFilesByName(fileName);
   if (files.hasNext()) {
     var existingFile = files.next();
     return SpreadsheetApp.openById(existingFile.getId());
   }
 
-  // Create new Spreadsheet
-  var newSS = SpreadsheetApp.create(fileName);
-  var fileId = newSS.getId();
-  var driveFile = DriveApp.getFileById(fileId);
-  
-  if (folder) {
-    folder.addFile(driveFile);
-    try {
-      DriveApp.getRootFolder().removeFile(driveFile);
-    } catch(e) {
-      // Ignore if root removal fails
-    }
+  // 2. Jika belum ada, salin dari Master Template 16aTGfKoFbjSMAjE10JSjOnyqpH3jQ8Uc
+  try {
+    var templateFile = DriveApp.getFileById(TEMPLATE_FILE_ID);
+    var clonedFile = templateFile.makeCopy(fileName, folder);
+    return SpreadsheetApp.openById(clonedFile.getId());
+  } catch (e) {
+    console.error("Error cloning master template, creating fallback spreadsheet:", e);
+    var newSS = SpreadsheetApp.create(fileName);
+    var fileId = newSS.getId();
+    var driveFile = DriveApp.getFileById(fileId);
+    if (folder) folder.addFile(driveFile);
+    return newSS;
+  }
+}
+
+/**
+ * Mengisikan data ke dalam sel-sel template Google Spreadsheet secara presisi
+ */
+function saveAllSheets(ss, data) {
+  // 1. Sheet "Isi data"
+  if (data.identitas) {
+    var sheetIsi = getOrCreateSheet(ss, "Isi data");
+    
+    // Mapping sel identitas guru, kepala sekolah, dan penilai
+    var idMapping = [
+      { row: 5, col: 3, val: data.identitas.namaGuru },
+      { row: 6, col: 3, val: data.identitas.nipGuru },
+      { row: 7, col: 3, val: data.identitas.tugasTambahan },
+      { row: 8, col: 3, val: data.identitas.nuptk },
+      { row: 9, col: 3, val: data.identitas.ttlGuru },
+      { row: 10, col: 3, val: data.identitas.jabatanGuru },
+      { row: 11, col: 3, val: data.identitas.pangkatGolGuru },
+      { row: 12, col: 3, val: data.identitas.masaKerja },
+      { row: 13, col: 3, val: data.identitas.jenisKelamin },
+      { row: 14, col: 3, val: data.identitas.mapelDiampu },
+      
+      { row: 17, col: 3, val: data.identitas.namaKepalaSekolah },
+      { row: 18, col: 3, val: data.identitas.nipKepalaSekolah },
+      { row: 19, col: 3, val: data.identitas.namaInstansi },
+      { row: 20, col: 3, val: data.identitas.npsn },
+      { row: 21, col: 3, val: data.identitas.kecamatan },
+      { row: 22, col: 3, val: data.identitas.kabupaten },
+      
+      { row: 25, col: 3, val: data.identitas.namaPenilai },
+      { row: 26, col: 3, val: data.identitas.periodePenilaian },
+      { row: 27, col: 3, val: data.identitas.tanggalPelaksanaan }
+    ];
+
+    idMapping.forEach(function(m) {
+      if (m.val !== undefined && m.val !== null) {
+        sheetIsi.getRange(m.row, m.col).setValue(m.val);
+        sheetIsi.getRange(m.row, m.col - 1).setValue(m.val); // Fallback ke Col B jika sel di-merge
+      }
+    });
   }
 
-  return newSS;
+  // 2. Sheet SubKom.1 s/d SubKom.14
+  if (data.subkompetensi) {
+    data.subkompetensi.forEach(function(sub) {
+      var sheetSub = ss.getSheetByName(sub.name);
+      if (!sheetSub) {
+        sheetSub = ss.insertSheet(sub.name);
+      }
+
+      var lastRow = sheetSub.getLastRow();
+      if (lastRow > 3) {
+        // Sheet Template Ada: Isi skor pada Kolom C & Bukti Dukung pada Kolom D
+        var rangeA = sheetSub.getRange(1, 1, Math.min(lastRow, 45), 1).getValues();
+        sub.indicators.forEach(function(ind) {
+          for (var r = 0; r < rangeA.length; r++) {
+            var valA = rangeA[r][0];
+            if (valA == ind.no || valA === ind.no.toString()) {
+              sheetSub.getRange(r + 1, 3).setValue(ind.score); // Col C = Skor
+              if (ind.evidence !== undefined && ind.evidence !== null) {
+                sheetSub.getRange(r + 1, 4).setValue(ind.evidence); // Col D = Bukti Dukung
+              }
+              break;
+            }
+          }
+        });
+      } else {
+        // Fallback untuk sheet kosong
+        var subRows = [
+          [sub.name + " - " + sub.title],
+          ["No", "Indikator", "Skor (0, 1, 2)", "Bukti Dukung / Catatan Pengamatan"]
+        ];
+        sub.indicators.forEach(function(ind) {
+          subRows.push([ind.no, ind.text, ind.score, ind.evidence || ""]);
+        });
+        subRows.push(["", "Total Skor", sub.totalScore, ""]);
+        subRows.push(["", "Skor Maksimal", sub.maxScore, ""]);
+        subRows.push(["", "Persentase", sub.percentage + "%", ""]);
+        subRows.push(["", "Nilai Subkompetensi", sub.convertedScore, ""]);
+        sheetSub.getRange(1, 1, subRows.length, 4).setValues(subRows);
+      }
+    });
+  }
+
+  // 3. Sheet "Instrumen Perilaku GuruKS"
+  if (data.instrumenPerilaku) {
+    var sheetPerilaku = getOrCreateSheet(ss, "Instrumen Perilaku GuruKS");
+    var lastRowP = sheetPerilaku.getLastRow();
+    
+    if (lastRowP > 3) {
+      // Sheet Template Ada: Isikan skor ke Kolom D
+      var rangeA_P = sheetPerilaku.getRange(1, 1, Math.min(lastRowP, 60), 3).getValues();
+      var stCounter = 1;
+      
+      data.instrumenPerilaku.forEach(function(kom) {
+        kom.statements.forEach(function(st) {
+          for (var r = 5; r < rangeA_P.length; r++) {
+            var cellC = rangeA_P[r][2];
+            var cellA = rangeA_P[r][0];
+            if (cellC && (cellC.toString().indexOf(st.no + ".") === 0 || cellC.toString().indexOf(st.text.substring(0, 15)) >= 0 || cellA == stCounter)) {
+              sheetPerilaku.getRange(r + 1, 4).setValue(st.score);
+              stCounter++;
+              break;
+            }
+          }
+        });
+      });
+    } else {
+      // Fallback sheet kosong
+      var perilakuRows = [
+        ["INSTRUMEN PENILAIAN PRILAKU KINERJA GURU / KEPALA SEKOLAH OLEH PESERTA DIDIK/SISWA"],
+        ["Nama Guru / KS:", data.identitas ? data.identitas.namaGuru : ""],
+        ["NIP:", data.identitas ? data.identitas.nipGuru : ""],
+        ["Tugas Tambahan:", data.identitas ? data.identitas.tugasTambahan : ""],
+        [""],
+        ["NO", "KOMPONEN", "PERNYATAAN", "SKOR (0 / 1 / 2)"]
+      ];
+
+      var totalPerilaku = 0;
+      data.instrumenPerilaku.forEach(function(kom) {
+        kom.statements.forEach(function(st, idx) {
+          totalPerilaku += (st.score || 0);
+          perilakuRows.push([
+            idx === 0 ? kom.id : "",
+            idx === 0 ? kom.name : "",
+            st.no + ". " + st.text,
+            st.score
+          ]);
+        });
+      });
+
+      perilakuRows.push(["", "", "TOTAL SKOR PERILAKU", totalPerilaku]);
+      sheetPerilaku.getRange(1, 1, perilakuRows.length, 4).setValues(perilakuRows);
+    }
+  }
+}
+
+function getOrCreateSheet(ss, name) {
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+  }
+  return sheet;
 }
 
 function listTeacherFiles() {
@@ -118,138 +272,4 @@ function listTeacherFiles() {
     console.error("Error listing files:", e);
   }
   return filesList;
-}
-
-function saveAllSheets(ss, data) {
-  // 1. Save "Isi data" Sheet
-  if (data.identitas) {
-    var sheetIsi = getOrCreateSheet(ss, "Isi data");
-    sheetIsi.clearContents();
-    
-    var idRows = [
-      ["DATA GURU DAN PENILAI PKG 2025", ""],
-      ["A. DATA GURU", ""],
-      ["Nama guru", data.identitas.namaGuru || ""],
-      ["NIP", data.identitas.nipGuru || ""],
-      ["Tugas Tambahan", data.identitas.tugasTambahan || ""],
-      ["NUPTK/NRG", data.identitas.nuptk || ""],
-      ["Tempat. Tanggal lahir", data.identitas.ttlGuru || ""],
-      ["Jabatan", data.identitas.jabatanGuru || ""],
-      ["Pangkat/gol", data.identitas.pangkatGolGuru || ""],
-      ["Masa kerja", data.identitas.masaKerja || ""],
-      ["Jenis kelamin", data.identitas.jenisKelamin || ""],
-      ["Mata pelajaran diampu", data.identitas.mapelDiampu || ""],
-      ["", ""],
-      ["B. DATA KEPALA SEKOLAH", ""],
-      ["Nama Kepala Sekolah", data.identitas.namaKepalaSekolah || ""],
-      ["NIP", data.identitas.nipKepalaSekolah || ""],
-      ["Nama instansi", data.identitas.namaInstansi || ""],
-      ["NPSN", data.identitas.npsn || ""],
-      ["Kecamatan", data.identitas.kecamatan || ""],
-      ["Kabupaten/Kota", data.identitas.kabupaten || ""],
-      ["", ""],
-      ["C. DATA PENILAI", ""],
-      ["Nama penilai", data.identitas.namaPenilai || ""],
-      ["Periode penilaian", data.identitas.periodePenilaian || ""],
-      ["Tanggal pelaksanaan", data.identitas.tanggalPelaksanaan || ""]
-    ];
-
-    sheetIsi.getRange(1, 1, idRows.length, 2).setValues(idRows);
-  }
-
-  // 2. Save "Rekap" Sheet
-  if (data.subkompetensi) {
-    var sheetRekap = getOrCreateSheet(ss, "Rekap");
-    sheetRekap.clearContents();
-
-    var rekapRows = [
-      ["REKAPITULASI HASIL PENILAIAN KINERJA GURU 2025"],
-      ["Nama Guru:", data.identitas ? data.identitas.namaGuru : ""],
-      ["Sekolah:", data.identitas ? data.identitas.namaInstansi : ""],
-      [""],
-      ["No", "Sub-Kompetensi PKG", "Skor Maks", "Skor Diraih", "Persentase (%)", "Nilai (1-4)"]
-    ];
-
-    var grandTotal = 0;
-    data.subkompetensi.forEach(function(sub, idx) {
-      grandTotal += sub.convertedScore || 0;
-      rekapRows.push([
-        idx + 1,
-        sub.name + " - " + sub.title,
-        sub.maxScore,
-        sub.totalScore,
-        sub.percentage + "%",
-        sub.convertedScore
-      ]);
-    });
-
-    rekapRows.push(["", "TOTAL NILAI KONVERSI PKG", "", "", "", grandTotal]);
-    sheetRekap.getRange(1, 1, rekapRows.length, 6).setValues(rekapRows);
-
-    // 3. Save SubKom 1-14 Sheets
-    data.subkompetensi.forEach(function(sub) {
-      var sheetSub = getOrCreateSheet(ss, sub.name);
-      sheetSub.clearContents();
-
-      var subRows = [
-        [sub.name + " - " + sub.title],
-        ["No", "Indikator", "Skor (0, 1, 2)", "Bukti Dukung / Catatan Pengamatan"]
-      ];
-
-      sub.indicators.forEach(function(ind) {
-        subRows.push([
-          ind.no,
-          ind.text,
-          ind.score,
-          ind.evidence || ""
-        ]);
-      });
-
-      subRows.push(["", "Total Skor", sub.totalScore, ""]);
-      subRows.push(["", "Skor Maksimal", sub.maxScore, ""]);
-      subRows.push(["", "Persentase", sub.percentage + "%", ""]);
-      subRows.push(["", "Nilai Subkompetensi", sub.convertedScore, ""]);
-
-      sheetSub.getRange(1, 1, subRows.length, 4).setValues(subRows);
-    });
-  }
-
-  // 4. Save "Instrumen Perilaku GuruKS" Sheet
-  if (data.instrumenPerilaku) {
-    var sheetPerilaku = getOrCreateSheet(ss, "Instrumen Perilaku GuruKS");
-    sheetPerilaku.clearContents();
-
-    var perilakuRows = [
-      ["INSTRUMEN PENILAIAN PRILAKU KINERJA GURU / KEPALA SEKOLAH OLEH PESERTA DIDIK/SISWA"],
-      ["Nama Guru / KS:", data.identitas ? data.identitas.namaGuru : ""],
-      ["NIP:", data.identitas ? data.identitas.nipGuru : ""],
-      ["Tugas Tambahan:", data.identitas ? data.identitas.tugasTambahan : ""],
-      [""],
-      ["NO", "KOMPONEN", "PERNYATAAN", "SKOR (0 / 1 / 2)"]
-    ];
-
-    var totalPerilaku = 0;
-    data.instrumenPerilaku.forEach(function(kom) {
-      kom.statements.forEach(function(st, idx) {
-        totalPerilaku += (st.score || 0);
-        perilakuRows.push([
-          idx === 0 ? kom.id : "",
-          idx === 0 ? kom.name : "",
-          st.no + ". " + st.text,
-          st.score
-        ]);
-      });
-    });
-
-    perilakuRows.push(["", "", "TOTAL SKOR PERILAKU", totalPerilaku]);
-    sheetPerilaku.getRange(1, 1, perilakuRows.length, 4).setValues(perilakuRows);
-  }
-}
-
-function getOrCreateSheet(ss, name) {
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
-  return sheet;
 }

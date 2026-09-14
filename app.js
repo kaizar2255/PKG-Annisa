@@ -256,6 +256,11 @@ function handleRegisterSubmit(event) {
   localStorage.setItem('PKG_CURRENT_USER', JSON.stringify(currentUser));
   initApp();
   showToast(`Akun guru ${nama} berhasil didaftarkan!`, "user-plus");
+
+  // Sync to Google Drive to create individual teacher file in Drive folder
+  if (gasUrl && gasUrl.trim() !== '') {
+    handleSave();
+  }
 }
 
 function handleLogout() {
@@ -1507,19 +1512,18 @@ function updateIndicatorEvidence(subId, indNo, val) {
   }
 }
 
-// SAVE ACTION: Save to localStorage and Google Sheets (if configured)
+// SAVE ACTION: Save to localStorage and Google Drive folder (if configured)
 async function handleSave() {
   recalculateAll();
   saveActiveTeacherData();
 
   if (gasUrl && gasUrl.trim() !== '') {
-    showToast("Mengirim data ke Google Sheets...", "refresh-cw");
+    showToast("Mengirim data ke Google Drive...", "refresh-cw");
 
     try {
       const response = await fetch(gasUrl, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'save',
           username: activeTeacherUsername,
@@ -1529,10 +1533,43 @@ async function handleSave() {
         })
       });
 
-      showToast("Data tersimpan ke Google Sheets & Lokal!", "check-circle-2");
+      let resJson = null;
+      try {
+        resJson = await response.json();
+      } catch (e) {
+        // no-op if opaque
+      }
+
+      if (resJson && resJson.fileUrl) {
+        if (pkgData) {
+          pkgData.spreadsheetUrl = resJson.fileUrl;
+          pkgData.spreadsheetName = resJson.fileName;
+          saveActiveTeacherData();
+        }
+        showToast("File Spreadsheet Guru tersimpan di Drive Folder!", "check-circle-2");
+      } else {
+        showToast("Data tersimpan ke Google Drive & Lokal!", "check-circle-2");
+      }
     } catch (err) {
-      console.error('GAS Save Error:', err);
-      showToast("Tersimpan di Lokal! (Gagal kirim ke Google Sheets)", "alert-triangle");
+      console.warn('GAS POST fetch attempt error, falling back to no-cors mode:', err);
+      try {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'save',
+            username: activeTeacherUsername,
+            role: currentUser ? currentUser.role : 'guru',
+            timestamp: new Date().toISOString(),
+            data: pkgData
+          })
+        });
+        showToast("Tersimpan ke File Google Drive Guru!", "check-circle-2");
+      } catch (err2) {
+        console.error('GAS Save Error:', err2);
+        showToast("Tersimpan di Lokal! (Gagal kirim ke Google Drive)", "alert-triangle");
+      }
     }
   } else {
     showToast("Data berhasil disimpan di Penyimpanan Lokal!", "check-circle-2");

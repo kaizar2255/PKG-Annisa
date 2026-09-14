@@ -1,19 +1,27 @@
 /**
  * Google Apps Script Backend for PKG 2025 Web Application
  * File: Code.gs
+ * Target Google Drive Folder: https://drive.google.com/drive/folders/1wOtpj-5XokbSn0DTBnfOrbdlUURRjcf7
  */
 
+var TARGET_FOLDER_ID = "1wOtpj-5XokbSn0DTBnfOrbdlUURRjcf7";
+
 function doGet(e) {
-  if (e && e.parameter && e.parameter.action === 'getData') {
-    var data = loadDataFromSheet();
-    return ContentService.createTextOutput(JSON.stringify(data))
-      .setMimeType(ContentService.MimeType.JSON);
+  if (e && e.parameter && e.parameter.action === 'getTeacherFiles') {
+    var filesList = listTeacherFiles();
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      folderId: TARGET_FOLDER_ID,
+      folderUrl: 'https://drive.google.com/drive/folders/' + TARGET_FOLDER_ID,
+      files: filesList
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('PKG 2025 - Penilaian Kinerja Guru')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'ready',
+    service: 'PKG 2025 Multi-User Google Drive Service',
+    folderUrl: 'https://drive.google.com/drive/folders/' + TARGET_FOLDER_ID
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
@@ -21,11 +29,16 @@ function doPost(e) {
     var postData = JSON.parse(e.postData.contents);
     
     if (postData && postData.data) {
-      var username = postData.username || (postData.data.identitas ? postData.data.identitas.namaGuru : "Guru");
-      saveDataToSheet(postData.data, username);
+      var username = postData.username || "Guru";
+      var result = saveDataToTeacherSpreadsheet(postData.data, username);
+      
       return ContentService.createTextOutput(JSON.stringify({
         status: 'success',
-        message: 'Data PKG 2025 (' + username + ') berhasil disimpan ke Google Sheets!'
+        message: 'Data PKG 2025 (' + username + ') berhasil disimpan ke Google Drive!',
+        fileUrl: result.fileUrl,
+        fileId: result.fileId,
+        fileName: result.fileName,
+        folderUrl: 'https://drive.google.com/drive/folders/' + TARGET_FOLDER_ID
       })).setMimeType(ContentService.MimeType.JSON);
     } else {
       throw new Error('Format data tidak valid');
@@ -38,12 +51,76 @@ function doPost(e) {
   }
 }
 
-function saveDataToSheet(data, username) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) return;
-  var userPrefix = username ? username + " - " : "";
+function saveDataToTeacherSpreadsheet(data, username) {
+  var namaGuru = (data.identitas && data.identitas.namaGuru) ? data.identitas.namaGuru : username;
+  var fileName = "PKG 2025 - " + namaGuru;
+  
+  var ss = getOrCreateUserSpreadsheet(fileName);
+  
+  // Save sheets in ss
+  saveAllSheets(ss, data);
 
+  return {
+    fileId: ss.getId(),
+    fileName: ss.getName(),
+    fileUrl: ss.getUrl()
+  };
+}
 
+function getOrCreateUserSpreadsheet(fileName) {
+  var folder;
+  try {
+    folder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+  } catch (err) {
+    folder = DriveApp.getRootFolder();
+  }
+
+  var files = folder.getFilesByName(fileName);
+  if (files.hasNext()) {
+    var existingFile = files.next();
+    return SpreadsheetApp.openById(existingFile.getId());
+  }
+
+  // Create new Spreadsheet
+  var newSS = SpreadsheetApp.create(fileName);
+  var fileId = newSS.getId();
+  var driveFile = DriveApp.getFileById(fileId);
+  
+  if (folder) {
+    folder.addFile(driveFile);
+    try {
+      DriveApp.getRootFolder().removeFile(driveFile);
+    } catch(e) {
+      // Ignore if root removal fails
+    }
+  }
+
+  return newSS;
+}
+
+function listTeacherFiles() {
+  var filesList = [];
+  try {
+    var folder = DriveApp.getFolderById(TARGET_FOLDER_ID);
+    var files = folder.getFiles();
+    while (files.hasNext()) {
+      var file = files.next();
+      if (file.getMimeType() === MimeType.GOOGLE_SHEETS) {
+        filesList.push({
+          id: file.getId(),
+          name: file.getName(),
+          url: file.getUrl(),
+          lastUpdated: file.getLastUpdated()
+        });
+      }
+    }
+  } catch(e) {
+    console.error("Error listing files:", e);
+  }
+  return filesList;
+}
+
+function saveAllSheets(ss, data) {
   // 1. Save "Isi data" Sheet
   if (data.identitas) {
     var sheetIsi = getOrCreateSheet(ss, "Isi data");
@@ -175,8 +252,4 @@ function getOrCreateSheet(ss, name) {
     sheet = ss.insertSheet(name);
   }
   return sheet;
-}
-
-function loadDataFromSheet() {
-  return { status: "ready" };
 }

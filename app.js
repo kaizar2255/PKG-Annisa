@@ -454,9 +454,27 @@ function submitKsNotes() {
   showToast("Catatan perbaikan telah dikirimkan ke Guru.", "message-square");
 }
 
+// Mobile Sidebar Toggle Handlers
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar-container');
+  const backdrop = document.getElementById('mobile-sidebar-backdrop');
+
+  if (sidebar) sidebar.classList.toggle('open');
+  if (backdrop) backdrop.classList.toggle('hidden');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar-container');
+  const backdrop = document.getElementById('mobile-sidebar-backdrop');
+
+  if (sidebar) sidebar.classList.remove('open');
+  if (backdrop) backdrop.classList.add('hidden');
+}
+
 // Switch Sidebar Active Tab
 function switchTab(tabName) {
   currentTab = tabName;
+  closeMobileSidebar();
 
   document.querySelectorAll('.sidebar-link').forEach(el => {
     if (el.getAttribute('data-sheet') === tabName) {

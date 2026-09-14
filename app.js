@@ -1365,9 +1365,9 @@ function renderSubKomView(subId) {
           <thead>
             <tr class="bg-slate-100/70 text-slate-800 font-bold">
               <th rowspan="3" class="w-12 text-center align-middle border-b border-slate-300">No</th>
-              <th rowspan="3" class="text-center align-middle border-b border-slate-300">Indikator</th>
+              <th rowspan="3" class="col-indicator text-center align-middle border-b border-slate-300">Indikator</th>
               <th colspan="3" class="text-center py-2 border-b border-slate-200">Skor</th>
-              <th rowspan="3" class="w-72 text-center align-middle border-b border-slate-300">Bukti dukung/hal yang tampak</th>
+              <th rowspan="3" class="col-evidence w-72 text-center align-middle border-b border-slate-300">Bukti dukung/hal yang tampak</th>
             </tr>
             <tr class="bg-slate-50/80 text-slate-700 text-[11px] font-semibold">
               <th class="w-24 text-center py-2 border-r border-slate-200">Tidak ada<br>bukti<br>(tidak<br>terpenuhi)</th>
@@ -1408,7 +1408,7 @@ function renderSubKomView(subId) {
               return `
                 <tr>
                   <td class="text-center font-bold text-slate-700 py-3">${ind.no}</td>
-                  <td class="text-left align-middle leading-relaxed py-3 px-4 font-medium text-slate-800">${cleanTxt}</td>
+                  <td class="col-indicator text-left align-middle leading-relaxed py-3 px-4 font-medium text-slate-800">${cleanTxt}</td>
                   <td class="score-cell text-center align-middle cursor-pointer hover:bg-slate-100/80 transition ${cell0Bg}" onclick="setIndicatorScore(${sub.id}, ${ind.no}, 0)">
                     ${badge0}
                   </td>
@@ -1418,7 +1418,7 @@ function renderSubKomView(subId) {
                   <td class="score-cell text-center align-middle cursor-pointer hover:bg-slate-100/80 transition ${cell2Bg}" onclick="setIndicatorScore(${sub.id}, ${ind.no}, 2)">
                     ${badge2}
                   </td>
-                  <td class="p-2 text-left align-middle">
+                  <td class="col-evidence p-2 text-left align-middle">
                     <div contenteditable="true" 
                          onblur="updateIndicatorEvidence(${sub.id}, ${ind.no}, this.innerText)"
                          class="evidence-editable text-left border border-slate-200 hover:border-slate-400 focus:border-sky-500 focus:bg-sky-50/50 bg-white leading-relaxed text-slate-700">

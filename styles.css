@@ -72,6 +72,21 @@ body {
   .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Balanced Mobile Table Proportions */
+  .table-pkg {
+    min-width: 580px !important;
+  }
+
+  .col-indicator {
+    min-width: 200px !important;
+    max-width: 290px !important;
+  }
+
+  .col-evidence {
+    min-width: 190px !important;
+    max-width: 270px !important;
+  }
 }
 
 /* Table Custom Styling */
